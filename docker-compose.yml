@@ -14,6 +14,11 @@ x-backend: &backend
     QDRANT_URL: http://qdrant:6333
     # Embedding model is baked into the image; never reach out to Hugging Face at runtime.
     HF_HUB_OFFLINE: "1"
+    EMBEDDING_CACHE_DIR: /models
+  # Optional host cache (data/hf-cache) so a model can be provided without rebuilding the image.
+  # `make model` downloads it; the baked-in model in the image is used when the cache is empty.
+  volumes:
+    - ./data/hf-cache:/models:ro
   restart: unless-stopped
 
 services:

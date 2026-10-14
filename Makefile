@@ -17,6 +17,9 @@ seed: ## Create demo users/orgs/roles and upload the corpus through the API (sta
 creds: ## Print every local login (demo users + infra dashboards)
 	@./scripts/show-credentials.sh
 
+model: ## Download EMBEDDING_MODEL into data/hf-cache (alternative to rebuilding the image)
+	cd backend && HF_HOME=$(CURDIR)/data/hf-cache uv run python -c "import os; from sentence_transformers import SentenceTransformer as S; S(os.environ.get('EMBEDDING_MODEL','intfloat/multilingual-e5-small'))"
+
 up: ## Build and start the whole stack (http://localhost:8080)
 	$(COMPOSE) up -d --build
 
