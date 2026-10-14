@@ -226,3 +226,7 @@ backend/staticfiles/
 frontend/test-results/
 frontend/playwright-report/
 data/
+
+# Python-only rule above must not hide the frontend source dir
+!frontend/lib/
+!frontend/lib/**
