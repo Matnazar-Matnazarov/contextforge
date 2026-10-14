@@ -1,0 +1,6 @@
+[
+  {"question": "How many days of annual leave do full-time employees get?", "expected_file": "vacation_policy.md"},
+  {"question": "When is a medical certificate required for sick leave?", "expected_file": "vacation_policy.md"},
+  {"question": "How often must production service accounts rotate credentials?", "expected_file": "security_handbook.md"},
+  {"question": "How quickly must a security incident be reported to the on-call engineer?", "expected_file": "security_handbook.md"}
+]
