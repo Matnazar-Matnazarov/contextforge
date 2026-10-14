@@ -35,11 +35,12 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
     setError(null);
     setPending(question);
     reset();
+    let created: string | null = null;
     try {
       let id = conversationId;
       if (!id) {
         const conv = await api<Conversation>(`/orgs/${org.id}/conversations/`, { method: "POST", json: {} });
-        id = conv.id;
+        id = created = conv.id;
       }
       await api(`/orgs/${org.id}/conversations/${id}/messages/`, { method: "POST", json: { question } });
       await Promise.all([
@@ -49,6 +50,11 @@ export function ChatView({ conversationId }: { conversationId: string | null }) 
       if (!conversationId) router.replace(`/o/${org.id}/chat/${id}`);
     } catch (e) {
       setError(errorMessage(e));
+      // A failed first question must not leave an empty "Untitled" conversation behind.
+      if (created) {
+        await api(`/orgs/${org.id}/conversations/${created}/`, { method: "DELETE" }).catch(() => undefined);
+        qc.invalidateQueries({ queryKey: keys.convs(org.id) });
+      }
     } finally {
       setPending(null);
     }
