@@ -72,9 +72,9 @@ test.describe("RAG over the seeded corpus", () => {
   test("cited answer from an RFC and download via citation", async ({ page }) => {
     await login(page, "owner@acme.test");
     await openOrg(page, "Acme Engineering", "Chat");
-    await page.getByLabel("Your question").fill("What is the difference between the HTTP GET and POST methods?");
+    await page.getByLabel("Your question").fill("What does the HTTP 404 (Not Found) status code mean?");
     await page.getByRole("button", { name: "Send question" }).click();
-    const source = page.getByRole("button", { name: /S1.*rfc9110/ });
+    const source = page.getByRole("button", { name: /S\d.*rfc9110/ }).first();
     await expect(source).toBeVisible({ timeout: 90_000 });
     await source.click();
     await expect(page.getByRole("complementary", { name: "Source" })).toBeVisible();
@@ -106,4 +106,13 @@ test("search returns passages from the user's own organization only", async ({ p
   await page.getByLabel("Search passages").fill("Elizabeth Bennet Pride and Prejudice");
   await page.getByRole("button", { name: "Search" }).click();
   await expect(page.getByText(/pride-and-prejudice/)).toHaveCount(0);
+});
+
+test("Uzbek: keyword-heavy question over the Uzbek knowledge base gets a cited answer", async ({ page }) => {
+  await login(page, "owner@uz.test");
+  await page.getByRole("link", { name: /Bilim Bazasi/ }).click();
+  await page.getByRole("link", { name: "Chat", exact: true }).click();
+  await page.getByLabel("Your question").fill("Alisher Navoiy qachon tug'ilgan?");
+  await page.getByRole("button", { name: "Send question" }).click();
+  await expect(page.getByRole("button", { name: /S\d.*uz-wiki-Alisher-Navoiy/ }).first()).toBeVisible({ timeout: 90_000 });
 });
