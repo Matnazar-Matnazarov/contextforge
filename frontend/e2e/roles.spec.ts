@@ -11,7 +11,7 @@ async function login(page: Page, email: string) {
   await expect(page.getByRole("heading", { name: "Your organizations" })).toBeVisible();
 }
 
-async function openOrg(page: Page, name: string, section: "Chat" | "Documents" | "Members" = "Documents") {
+async function openOrg(page: Page, name: string, section: "Chat" | "Documents" | "Members" | "Search" = "Documents") {
   await page.getByRole("link", { name: new RegExp(name) }).click();
   await page.getByRole("link", { name: section, exact: true }).click();
 }
@@ -95,4 +95,15 @@ test.describe("RAG over the seeded corpus", () => {
     await page.getByRole("button", { name: "Send question" }).click();
     await expect(page.getByRole("button", { name: /pride-and-prejudice/ })).toHaveCount(0, { timeout: 90_000 });
   });
+});
+
+test("search returns passages from the user's own organization only", async ({ page }) => {
+  await login(page, "multi@demo.test");
+  await openOrg(page, "Initech Docs", "Search");
+  await page.getByLabel("Search passages").fill("lifetimes borrow checker");
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect(page.getByText(/rust-book/).first()).toBeVisible({ timeout: 30_000 });
+  await page.getByLabel("Search passages").fill("Elizabeth Bennet Pride and Prejudice");
+  await page.getByRole("button", { name: "Search" }).click();
+  await expect(page.getByText(/pride-and-prejudice/)).toHaveCount(0);
 });

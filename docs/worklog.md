@@ -74,3 +74,11 @@ Fixed an e2e race (`getByLabel("Name")` matched "Display name" on the register p
 
 Verified: seed indexed 42 docs (~11.7k vectors); `make lint-backend` clean; backend pytest 89 passed; frontend typecheck + eslint clean;
 Playwright 14/14 passed against the running stack with system Chromium; Django admin login, Qdrant, RabbitMQ API and SeaweedFS filer responded.
+
+## 2026-10-14 — Claude — Search, dashboard logins, model switch
+
+- Added `GET /api/orgs/{id}/search/?q=` (tenant-scoped semantic passage search, no LLM) and a Search page in the UI; backend test + e2e test.
+- Dashboard logins: Qdrant now requires `QDRANT_API_KEY` (dashboard asks for it); SeaweedFS filer UI is only reachable through Caddy basic auth on :8889 (`demo`/`Demo-Pass-2026!`); RabbitMQ and S3 use documented demo credentials written by `make env`.
+- Gemini: `gemini-3.5-flash` hit free-tier quota (429); default now `gemini-3.5-flash-lite`, fallback `gemini-3-flash-preview`.
+- Docker `npm ci` stalled on the default bridge network; building with `docker build --network host ./frontend` worked.
+- Verified: backend pytest 90 passed, lint clean, frontend typecheck/eslint clean, Playwright 15/15, Qdrant 401 without key / 200 with key, filer 401 without / 200 with basic auth, S3 download via new keys.
