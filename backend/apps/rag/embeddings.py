@@ -2,8 +2,10 @@
 
 import hashlib
 import math
+import os
 import re
 from functools import lru_cache
+from pathlib import Path
 from typing import Protocol
 
 from django.conf import settings
@@ -22,6 +24,10 @@ class SentenceTransformerProvider:
 
     def __init__(self, model_name: str, dimensions: int, batch_size: int):
         self.model_name = model_name
+        # E5-family models are trained with these task prefixes; omitting them noticeably hurts retrieval.
+        e5 = "e5" in model_name.lower()
+        self._query_prefix = "query: " if e5 else ""
+        self._passage_prefix = "passage: " if e5 else ""
         self.dimensions = dimensions
         self._batch_size = batch_size
         self._model = None
@@ -30,20 +36,28 @@ class SentenceTransformerProvider:
         if self._model is None:
             from sentence_transformers import SentenceTransformer
 
-            self._model = SentenceTransformer(self.model_name)
-            actual = self._model.get_sentence_embedding_dimension()
+            # Optional extra cache (compose mounts data/hf-cache, HF_HOME layout); else the image's baked-in one.
+            extra = Path(os.environ.get("EMBEDDING_CACHE_DIR", "/nonexistent")) / "hub"
+            repo = "models--" + self.model_name.replace("/", "--")
+            complete = any((extra / repo / "snapshots").glob("*/model.safetensors"))
+            cache = str(extra) if complete else None
+            self._model = SentenceTransformer(self.model_name, cache_folder=cache)
+            actual = self._model.get_embedding_dimension()
             if actual != self.dimensions:
                 raise RuntimeError(f"EMBEDDING_DIMENSIONS={self.dimensions} but {self.model_name} produces {actual}")
         return self._model
 
-    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+    def _encode(self, texts: list[str]) -> list[list[float]]:
         vectors = self._load().encode(
             texts, batch_size=self._batch_size, normalize_embeddings=True, show_progress_bar=False
         )
         return [v.tolist() for v in vectors]
 
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._encode([self._passage_prefix + t for t in texts])
+
     def embed_query(self, text: str) -> list[float]:
-        return self.embed_documents([text])[0]
+        return self._encode([self._query_prefix + text])[0]
 
 
 class HashingProvider:

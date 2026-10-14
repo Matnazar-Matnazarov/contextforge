@@ -76,6 +76,18 @@ class QdrantVectorStore:
             ("chunk_index", models.PayloadSchemaType.INTEGER),
         ):
             self.client.create_payload_index(self.collection, field_name=field, field_schema=schema)
+        # Full-text index powers the lexical half of hybrid retrieval (names, terms, rare words in any language).
+        self.client.create_payload_index(
+            self.collection,
+            field_name="text",
+            field_schema=models.TextIndexParams(
+                type=models.TextIndexType.TEXT,
+                tokenizer=models.TokenizerType.WORD,
+                min_token_len=2,
+                max_token_len=40,
+                lowercase=True,
+            ),
+        )
 
     def upsert_chunks(
         self, *, organization_id, document_id, document_name: str, embedding_model: str, chunks: list[ChunkPoint]
@@ -159,6 +171,45 @@ class QdrantVectorStore:
             with_payload=True,
         )
         return [SearchHit(score=p.score, payload=dict(p.payload or {})) for p in result.points]
+
+    def _text_filter(self, organization_id, token: str) -> models.Filter:
+        return models.Filter(
+            must=[
+                models.FieldCondition(key="organization_id", match=models.MatchValue(value=str(organization_id))),
+                models.FieldCondition(key="text", match=models.MatchText(text=token)),
+            ]
+        )
+
+    def count_org_chunks(self, *, organization_id) -> int:
+        if not organization_id:
+            raise ValueError("organization_id is required")
+        return self.client.count(
+            self.collection,
+            count_filter=models.Filter(
+                must=[models.FieldCondition(key="organization_id", match=models.MatchValue(value=str(organization_id)))]
+            ),
+            exact=True,
+        ).count
+
+    def token_document_frequency(self, *, organization_id, token: str) -> int:
+        if not organization_id:
+            raise ValueError("organization_id is required")
+        return self.client.count(
+            self.collection, count_filter=self._text_filter(organization_id, token), exact=True
+        ).count
+
+    def search_text(self, *, organization_id, token: str, limit: int) -> list[dict[str, Any]]:
+        """Chunks of this organization whose text contains `token` (full-text match, no ranking)."""
+        if not organization_id:
+            raise ValueError("organization_id is required for text search")
+        points, _ = self.client.scroll(
+            self.collection,
+            scroll_filter=self._text_filter(organization_id, token),
+            limit=limit,
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [dict(p.payload or {}) for p in points]
 
 
 def _scope(organization_id, document_id) -> list[models.Condition]:

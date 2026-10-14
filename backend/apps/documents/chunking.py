@@ -13,6 +13,9 @@ class Chunk:
     section: str | None
 
 
+# Uzbek Latin writes o' / g' with several look-alike marks; unify them so search and keyword match agree.
+_APOSTROPHES = str.maketrans({"\u2018": "'", "\u2019": "'", "\u02bb": "'", "\u02bc": "'", "\u0060": "'", "\u00b4": "'"})
+
 _BREAKS = ("\n\n", "\n", ". ", "? ", "! ", "; ", ", ", " ")
 
 
@@ -38,6 +41,11 @@ def split_text(text: str, size: int, overlap: int) -> list[str]:
         if end >= n:
             break
         nxt = end - overlap
+        if nxt > start:
+            # Never start a chunk mid-word: move forward to the next whitespace boundary.
+            while nxt < end and not text[nxt - 1].isspace():
+                nxt += 1
+            nxt = min(nxt, end)
         start = nxt if nxt > start else end
     return pieces
 
@@ -46,6 +54,6 @@ def chunk_segments(segments: list[Segment], size: int, overlap: int) -> list[Chu
     """Chunks never span segments, so page/section provenance stays exact."""
     chunks: list[Chunk] = []
     for seg in segments:
-        for piece in split_text(seg.text, size, overlap):
+        for piece in split_text(seg.text.translate(_APOSTROPHES), size, overlap):
             chunks.append(Chunk(index=len(chunks), text=piece, page=seg.page, section=seg.section))
     return chunks

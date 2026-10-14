@@ -230,3 +230,34 @@ def test_gemini_client_falls_back_to_secondary_model(monkeypatch):
 
 def test_llm_answer_dataclass_roundtrip():
     assert LLMAnswer("a", True, ["S1"], "m").cited_source_ids == ["S1"]
+
+
+def test_lexical_retrieval_finds_rare_words_when_dense_search_finds_nothing(
+    make_org, membership_of, index_file, settings
+):
+    """Uzbek vocabulary list: embeddings are weak here, but the keyword half must still find 'fud'."""
+    settings.RAG_SCORE_THRESHOLD = 0.999  # dense search returns nothing
+    org, owner = make_org(name="Uz")
+    words = " ".join(f"{i}. Word{i} (so'z{i}) - tarjima{i}." for i in range(1, 120))
+    text = f"{words} 4. Food (fud) - ovqat: (Sut) Qorningiz och, stol usti bo'lsa faqat sutga to'la."
+    index_file(membership_of(org, owner), "lugat.txt", text.encode())
+    chunks = retrieve(organization_id=org.id, question="food ni ayt unda")
+    assert chunks and "Food (fud)" in chunks[0].text
+    other, other_owner = make_org(name="Other")
+    assert retrieve(organization_id=other.id, question="food ni ayt unda") == []
+
+
+def test_chunks_never_start_mid_word():
+    from apps.documents.chunking import split_text
+
+    text = " ".join(f"word{i:03d}" for i in range(300))
+    for piece in split_text(text, size=200, overlap=60):
+        assert piece.split()[0].startswith("word") and piece.split()[-1].startswith("word")
+
+
+def test_uzbek_apostrophe_variants_are_unified():
+    from apps.documents.chunking import chunk_segments
+    from apps.documents.parsing import Segment
+
+    chunks = chunk_segments([Segment(text="o‘qimoq, goʻzal, ma’no", page=None, section=None)], 100, 10)
+    assert chunks[0].text == "o'qimoq, go'zal, ma'no"

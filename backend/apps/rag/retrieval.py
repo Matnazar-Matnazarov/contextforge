@@ -1,6 +1,8 @@
 """Tenant-scoped retrieval with DB re-validation of every hit."""
 
 import logging
+import math
+import re
 from dataclasses import dataclass
 from uuid import UUID
 
@@ -9,9 +11,14 @@ from django.conf import settings
 from apps.documents.models import Document, DocumentStatus
 
 from .embeddings import get_embedder
-from .vector_store import get_vector_store
+from .vector_store import SearchHit, get_vector_store
 
 logger = logging.getLogger(__name__)
+
+_WORD = re.compile(r"[^\W_]+", re.UNICODE)  # same splitting as Qdrant's word tokenizer
+_MAX_QUERY_TOKENS = 8
+_RARE_FRACTION = 0.15  # a token present in more than this share of the org's chunks carries no signal
+_RRF_K = 60
 
 
 @dataclass(frozen=True)
@@ -27,6 +34,44 @@ class RetrievedChunk:
     score: float
 
 
+def _tokens(text: str) -> list[str]:
+    seen: dict[str, None] = {}
+    for t in _WORD.findall(text.lower()):
+        if len(t) >= 3:
+            seen.setdefault(t)
+    return list(seen)[:_MAX_QUERY_TOKENS]
+
+
+def _lexical_hits(organization_id: UUID, query: str, limit: int) -> list[dict]:
+    """Keyword half of hybrid retrieval: rank chunks by the summed IDF of the rare query words they contain.
+
+    Embedding models are weak on rare words, names and low-resource languages; exact word matches are not.
+    """
+    store = get_vector_store()
+    total = store.count_org_chunks(organization_id=organization_id)
+    if total == 0:
+        return []
+    idf: dict[str, float] = {}
+    for tok in _tokens(query):
+        df = store.token_document_frequency(organization_id=organization_id, token=tok)
+        if 0 < df <= max(3, total * _RARE_FRACTION):
+            idf[tok] = math.log(1 + total / df)
+    if not idf:
+        return []
+    candidates: dict[str, dict] = {}
+    for tok in idf:
+        for payload in store.search_text(organization_id=organization_id, token=tok, limit=30):
+            candidates.setdefault(str(payload.get("chunk_id")), payload)
+    scored = []
+    for payload in candidates.values():
+        words = set(_WORD.findall(str(payload.get("text", "")).lower()))
+        score = sum(w for tok, w in idf.items() if tok in words)
+        if score > 0:
+            scored.append((score, payload))
+    scored.sort(key=lambda x: -x[0])
+    return [p for _, p in scored[:limit]]
+
+
 def retrieve(
     *, organization_id: UUID, question: str, limit: int | None = None, max_chars: int | None = None
 ) -> list[RetrievedChunk]:
@@ -35,13 +80,28 @@ def retrieve(
     A hit survives only if its document still exists in PostgreSQL, belongs to the same organization,
     and is currently `indexed`. Context is capped at RAG_MAX_CONTEXT_CHARS.
     """
+    top_k = limit or settings.RAG_TOP_K
     vector = get_embedder().embed_query(question)
-    hits = get_vector_store().search(
+    dense = get_vector_store().search(
         organization_id=organization_id,
         vector=vector,
-        limit=limit or settings.RAG_TOP_K,
+        limit=top_k,
         score_threshold=settings.RAG_SCORE_THRESHOLD,
     )
+    lexical = _lexical_hits(organization_id, question, top_k)
+
+    # Reciprocal-rank fusion of the semantic and keyword rankings.
+    fused: dict[str, float] = {}
+    by_id: dict[str, SearchHit] = {}
+    for rank, h in enumerate(dense):
+        cid = str(h.payload.get("chunk_id"))
+        by_id[cid] = h
+        fused[cid] = fused.get(cid, 0.0) + 1.0 / (_RRF_K + rank)
+    for rank, payload in enumerate(lexical):
+        cid = str(payload.get("chunk_id"))
+        by_id.setdefault(cid, SearchHit(score=0.0, payload=payload))
+        fused[cid] = fused.get(cid, 0.0) + 1.0 / (_RRF_K + rank)
+    hits = [by_id[c] for c in sorted(fused, key=lambda c: -fused[c])[:top_k]]
     if not hits:
         return []
 

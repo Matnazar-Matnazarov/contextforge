@@ -43,8 +43,13 @@ class PermanentIndexError(Exception):
     """Retrying cannot help (corrupt/unsupported file, missing object)."""
 
 
+# Bump when chunking/normalisation logic changes so `reindex_stale` re-queues documents indexed the old way.
+CHUNKER_VERSION = 2
+
+
 def current_index_signature() -> str:
-    return f"{get_embedder().model_name}|size={settings.CHUNK_SIZE}|overlap={settings.CHUNK_OVERLAP}"
+    chunking = f"size={settings.CHUNK_SIZE}|overlap={settings.CHUNK_OVERLAP}|chunker={CHUNKER_VERSION}"
+    return f"{get_embedder().model_name}|{chunking}"
 
 
 def object_key_for(organization_id, document_id, extension: str) -> str:
