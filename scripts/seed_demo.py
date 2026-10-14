@@ -20,6 +20,7 @@ CORPUS = Path(__file__).resolve().parent.parent / "data" / "corpus"
 ORGS = {
     "Acme Engineering": ("acme-engineering", {"owner@acme.test": "owner", "admin@acme.test": "admin", "member@acme.test": "member", "multi@demo.test": "member"}),
     "Globex Library": ("globex-library", {"owner@globex.test": "owner", "admin@acme.test": "admin", "multi@demo.test": "admin"}),
+    "Oʻzbek Bilim Bazasi": ("uzbek-bilim-bazasi", {"owner@uz.test": "owner", "admin@acme.test": "member", "multi@demo.test": "admin"}),
     "Initech Docs": ("initech-docs", {"multi@demo.test": "owner", "member@acme.test": "member"}),
 }
 USERS = {
@@ -29,6 +30,7 @@ USERS = {
     "owner@globex.test": "Greg Globex",
     "multi@demo.test": "Max Multi-Org",
     "outsider@demo.test": "Otto Outsider",
+    "owner@uz.test": "Dilshod Egasi",
 }
 
 

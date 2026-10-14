@@ -37,4 +37,20 @@ get initech-docs rust-readme.md "https://raw.githubusercontent.com/rust-lang/rus
 get initech-docs django-readme.md "https://raw.githubusercontent.com/django/django/main/README.rst"
 mv -f "$OUT/initech-docs/django-readme.md" "$OUT/initech-docs/django-readme.txt" 2>/dev/null || true
 
+# Org 4: Oʻzbek Bilim Bazasi - Uzbek Wikipedia articles (CC BY-SA 4.0), plain text
+wiki() { # file-name title
+  local dir="$OUT/uzbek-bilim-bazasi" name="$1.txt" title="$2"
+  mkdir -p "$dir"
+  if [ -s "$dir/$name" ]; then echo "skip $dir/$name"; return; fi
+  echo "get  $dir/$name"
+  curl -fsSL --retry 3 --max-time 120 -A "contextforge-demo-fetch/1.0 (local demo)" -G "https://uz.wikipedia.org/w/api.php" \
+    --data-urlencode "action=query" --data-urlencode "prop=extracts" --data-urlencode "explaintext=1" \
+    --data-urlencode "format=json" --data-urlencode "redirects=1" --data-urlencode "titles=$title" \
+    | python3 -c "import json,sys; p=list(json.load(sys.stdin)['query']['pages'].values())[0]; t=p.get('extract',''); sys.exit(1) if len(t)<500 else print('# '+p['title']+'\n\n'+t)" > "$dir/$name" \
+    || { echo "FAILED $title"; rm -f "$dir/$name"; }
+}
+for t in Toshkent Oʻzbekiston Samarqand Buxoro Xiva "Amir Temur" "Alisher Navoiy" "Mirzo Ulugʻbek" "Oʻzbek tili" "Zahiriddin Muhammad Bobur" "Abu Rayhon Beruniy" "Ibn Sino" "Abdulla Qodiriy" "Fargʻona" "Qoraqalpogʻiston" "Oʻzbekiston tarixi" "Navro‘z" "Paxta" "Plov"; do
+  wiki "uz-wiki-$(echo "$t" | tr ' ' '-' | tr -cd 'A-Za-z-')" "$t"
+done
+
 echo; du -sh "$OUT"/*; find "$OUT" -type f | wc -l

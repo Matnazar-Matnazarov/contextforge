@@ -11,6 +11,7 @@ cat <<TXT
   member@acme.test     member Acme Engineering, Initech Docs
   owner@globex.test    owner  Globex Library
   multi@demo.test      owner Initech Docs | admin Globex Library | member Acme Engineering
+  owner@uz.test        owner  Oʻzbek Bilim Bazasi (Uzbek Wikipedia articles)
   outsider@demo.test   no organization (isolation checks)
 == Django admin (http://localhost:$P/django-admin/)
   admin@contextforge.test / Demo-Pass-2026!   (superuser)
