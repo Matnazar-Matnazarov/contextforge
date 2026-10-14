@@ -26,3 +26,11 @@
 		reverse_proxy frontend:3000
 	}
 }
+
+# SeaweedFS filer web UI (bucket browser). The filer itself has no auth, so it is only reachable through here.
+:8889 {
+	basic_auth {
+		demo $2a$14$oy01omskalgZPKZrzDUKAe62TaHuuaC4un6Mj.Y5Wh8jhAlcs4WKW
+	}
+	reverse_proxy seaweedfs:8888
+}

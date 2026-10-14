@@ -27,7 +27,9 @@ class RetrievedChunk:
     score: float
 
 
-def retrieve(*, organization_id: UUID, question: str) -> list[RetrievedChunk]:
+def retrieve(
+    *, organization_id: UUID, question: str, limit: int | None = None, max_chars: int | None = None
+) -> list[RetrievedChunk]:
     """Search Qdrant filtered to `organization_id` (trusted, from membership), then drop stale hits.
 
     A hit survives only if its document still exists in PostgreSQL, belongs to the same organization,
@@ -37,7 +39,7 @@ def retrieve(*, organization_id: UUID, question: str) -> list[RetrievedChunk]:
     hits = get_vector_store().search(
         organization_id=organization_id,
         vector=vector,
-        limit=settings.RAG_TOP_K,
+        limit=limit or settings.RAG_TOP_K,
         score_threshold=settings.RAG_SCORE_THRESHOLD,
     )
     if not hits:
@@ -52,7 +54,7 @@ def retrieve(*, organization_id: UUID, question: str) -> list[RetrievedChunk]:
     }
 
     chunks: list[RetrievedChunk] = []
-    budget = settings.RAG_MAX_CONTEXT_CHARS
+    budget = max_chars or settings.RAG_MAX_CONTEXT_CHARS
     for hit in hits:
         p = hit.payload
         if p.get("organization_id") != str(organization_id) or p.get("document_id") not in valid:

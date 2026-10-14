@@ -17,9 +17,8 @@ cat <<TXT
 == RabbitMQ management (http://localhost:15672)
   $RABBITMQ_USER / $RABBITMQ_PASSWORD
 == SeaweedFS
-  Filer UI (browse bucket):  http://localhost:8888/buckets/$S3_BUCKET/   (no login, localhost only)
-  Master UI:                 http://localhost:9333
+  Filer UI (bucket browser): http://localhost:8889/buckets/$S3_BUCKET/   login: demo / Demo-Pass-2026!
   S3 endpoint:               http://localhost:8333  access key: $S3_ACCESS_KEY  secret: $S3_SECRET_KEY  bucket: $S3_BUCKET
-== Qdrant dashboard (http://localhost:6333/dashboard)  no login, collection: $QDRANT_COLLECTION
+== Qdrant dashboard (http://localhost:6333/dashboard)  enter API key: $QDRANT_API_KEY   collection: $QDRANT_COLLECTION
 == PostgreSQL (not published): docker compose exec db psql -U $POSTGRES_USER -d $POSTGRES_DB
 TXT

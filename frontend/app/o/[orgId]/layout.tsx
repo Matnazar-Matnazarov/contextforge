@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, usePathname } from "next/navigation";
-import { MessageSquare, FileText, Users, ArrowLeftRight } from "lucide-react";
+import { MessageSquare, FileText, Users, ArrowLeftRight, Search } from "lucide-react";
 import { OrgContext } from "@/components/org-context";
 import { Alert, Spinner } from "@/components/ui";
 import { UserMenu } from "@/components/user-menu";
@@ -11,6 +11,7 @@ import { useOrgs } from "@/lib/queries";
 
 const nav = [
   { href: "chat", label: "Chat", icon: MessageSquare },
+  { href: "search", label: "Search", icon: Search },
   { href: "documents", label: "Documents", icon: FileText },
   { href: "members", label: "Members", icon: Users },
 ];

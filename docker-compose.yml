@@ -21,6 +21,7 @@ services:
     image: caddy:2.10-alpine
     ports:
       - "127.0.0.1:${APP_PORT:-8080}:80"
+      - "127.0.0.1:8889:8889"   # SeaweedFS filer UI behind basic auth (demo / Demo-Pass-2026!)
     volumes:
       - ./infra/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on:
@@ -28,6 +29,8 @@ services:
         condition: service_healthy
       frontend:
         condition: service_started
+      seaweedfs:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -107,6 +110,8 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.15.4
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY}
     ports:
       - "127.0.0.1:6333:6333"
     volumes:
@@ -127,8 +132,6 @@ services:
       S3_SECRET_KEY: ${S3_SECRET_KEY}
     ports:
       - "127.0.0.1:8333:8333"   # S3 API
-      - "127.0.0.1:8888:8888"   # filer web UI (browse the bucket; no auth, localhost only)
-      - "127.0.0.1:9333:9333"   # master web UI
     volumes:
       - seaweeddata:/data
       - ./infra/seaweedfs/entrypoint.sh:/init/entrypoint.sh:ro

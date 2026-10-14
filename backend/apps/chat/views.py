@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 
 from apps.core.exceptions import ServiceError
 from apps.organizations.permissions import OrgContextMixin
+from apps.rag.retrieval import retrieve
 
 from . import services
 from .models import Conversation, Message
@@ -73,4 +74,32 @@ class MessageListCreateView(_ConvScoped, APIView):
         return Response(
             {"user_message": MessageSerializer(user_msg).data, "assistant_message": MessageSerializer(assistant).data},
             status=status.HTTP_201_CREATED,
+        )
+
+
+class SearchView(OrgContextMixin, APIView):
+    """Semantic passage search over the caller's organization. No LLM involved."""
+
+    throttle_scope = "chat"
+
+    @extend_schema(responses={200: None})
+    def get(self, request, org_id):
+        query = (request.query_params.get("q") or "").strip()
+        if not 2 <= len(query) <= 500:
+            raise ServiceError("Query must be 2-500 characters.", code="invalid_query", status_code=400)
+        chunks = retrieve(organization_id=self.organization.id, question=query, limit=10, max_chars=20000)
+        return Response(
+            {
+                "query": query,
+                "results": [
+                    {
+                        "document_id": str(c.document_id),
+                        "document_name": c.document_name,
+                        "page": c.page,
+                        "section": c.section,
+                        "excerpt": c.text[:700],
+                    }
+                    for c in chunks
+                ],
+            }
         )

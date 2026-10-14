@@ -134,3 +134,17 @@ def test_citations_survive_document_deletion(setup, monkeypatch, fake_llm):
     doc.delete()
     cit = Citation.objects.get()
     assert cit.document is None and cit.document_title == "vacation_policy.md" and cit.excerpt
+
+
+def test_search_returns_passages_and_is_tenant_scoped(setup, make_org, make_client):
+    org, owner, doc, c = setup
+    r = c.get(f"/api/orgs/{org.id}/search/", {"q": Q})
+    assert r.status_code == 200, r.content
+    hit = r.json()["results"][0]
+    assert hit["document_id"] == str(doc.id) and "25 days" in hit["excerpt"]
+    assert c.get(f"/api/orgs/{org.id}/search/", {"q": "x"}).status_code == 400
+
+    org_b, owner_b = make_org(name="B")
+    cb = make_client(owner_b)
+    assert cb.get(f"/api/orgs/{org_b.id}/search/", {"q": Q}).json()["results"] == []
+    assert cb.get(f"/api/orgs/{org.id}/search/", {"q": Q}).status_code == 404
