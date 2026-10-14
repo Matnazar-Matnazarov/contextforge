@@ -110,6 +110,7 @@ make creds    # print every login (demo users + RabbitMQ/SeaweedFS secrets read 
 | `member@acme.test` | **member** of Acme Engineering and Initech Docs | read, chat, download; no delete/manage controls |
 | `owner@globex.test` | **owner** of Globex Library | 8 public-domain novels |
 | `multi@demo.test` | **owner** Initech Docs, **admin** Globex Library, **member** Acme Engineering | role differs per organization (Rust book chapters in Initech) |
+| `owner@uz.test` | **owner** of Oʻzbek Bilim Bazasi | 18 Uzbek Wikipedia articles (Toshkent, Amir Temur, Navoiy, Beruniy…) for Uzbek-language search/chat. `multi@demo.test` is admin there |
 | `outsider@demo.test` | no organization | tenant-isolation checks: every org URL returns 404 |
 | `admin@contextforge.test` | Django **superuser** | <http://localhost:8080/django-admin/>: users, orgs, memberships, documents (read-only) |
 
@@ -135,6 +136,24 @@ The app has two ways to query documents: **Search** (semantic passage search, no
 
 Things to try in the browser: sign in as each role and compare the Documents/Members pages; ask Acme "How does TLS 1.3 handshake authentication work?" or "What is the difference between GET and POST?";
 ask Globex "Who is Elizabeth Bennet?"; ask Initech "What are lifetimes in Rust?"; ask Acme about *Pride and Prejudice* (it lives in a different tenant, so you get the explicit "not enough information" answer).
+
+## Search quality and languages
+
+Retrieval is **hybrid**: dense vectors (Qdrant) fused with a keyword ranker (Qdrant full-text index, rare-word IDF scoring, reciprocal-rank fusion). The keyword half
+matters for names, terms and low-resource languages such as Uzbek, where the default English-oriented embedding model gives weak scores. Chunks never start mid-word,
+and Uzbek apostrophe variants (`oʻ`, `o‘`, `o’` → `o'`) are unified at indexing time.
+Example that motivated this: asking `food ni ayt unda` over an Uzbek vocabulary list now finds the "Food (fud) - ovqat" entry.
+
+For better semantic search in Uzbek/Russian/100+ languages, switch to the multilingual model (same 384 dimensions, but a different vector space, so re-index):
+
+```bash
+# .env: EMBEDDING_MODEL=intfloat/multilingual-e5-small   (query:/passage: prefixes are applied automatically)
+make model       # downloads ~470 MB into data/hf-cache (mounted read-only into api/worker); or rebuild the images
+make up && make reindex
+```
+
+The `reindex_stale` command also re-queues documents whenever the chunker version (`CHUNKER_VERSION`) changes. If `docker compose build` hangs on `npm ci`/`apt-get` because of a slow network,
+build with `docker build --network host -t contextforge-frontend ./frontend`. For quick backend iteration without rebuilding, a local `docker-compose.override.yml` can mount `backend/apps` and `backend/config` into the containers (the file is gitignored).
 
 ## Configuration
 

@@ -12,7 +12,7 @@
 4. **Chunk** (`chunking.py`): character windows of `CHUNK_SIZE` with `CHUNK_OVERLAP`, preferring paragraph, line,
    sentence, then word boundaries. Chunks never cross page/section segments.
 5. **Embed** (`rag/embeddings.py`): `EmbeddingProvider` protocol. Default is a local `sentence-transformers` model
-   (`all-MiniLM-L6-v2`, 384 dimensions, normalized, cosine). Query and documents use the same provider.
+   (`all-MiniLM-L6-v2` by default (optional multilingual `intfloat/multilingual-e5-small`), 384 dimensions, normalized, cosine). Query and documents use the same provider.
 6. **Upsert** (`rag/vector_store.py`): one Qdrant collection for all tenants; payload per chunk:
    `organization_id, document_id, chunk_id, chunk_index, document_name, page, section, text, embedding_model`.
    Payload indexes exist on `organization_id`, `document_id`, `chunk_index`. The collection is created idempotently by
@@ -54,7 +54,7 @@ Snapshots survive document deletion (`document` becomes null, the title and exce
 `backend/tests/fixtures/` holds synthetic documents and `eval_questions.json` (question → expected source file).
 `tests/test_rag.py` asserts that the expected document is the top hit, irrelevant questions produce an insufficient answer, citations map to retrieved chunks,
 and tenants never see each other's data. Automated tests use a deterministic *hashing* embedder (lexical only) so they run offline;
-semantic quality with the real MiniLM model is not covered by CI and should be spot-checked manually.
+semantic quality with the real embedding model is not covered by CI and should be spot-checked manually.
 
 ## Extending
 

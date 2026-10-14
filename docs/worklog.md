@@ -82,3 +82,13 @@ Playwright 14/14 passed against the running stack with system Chromium; Django a
 - Gemini: `gemini-3.5-flash` hit free-tier quota (429); default now `gemini-3.5-flash-lite`, fallback `gemini-3-flash-preview`.
 - Docker `npm ci` stalled on the default bridge network; building with `docker build --network host ./frontend` worked.
 - Verified: backend pytest 90 passed, lint clean, frontend typecheck/eslint clean, Playwright 15/15, Qdrant 401 without key / 200 with key, filer 401 without / 200 with basic auth, S3 download via new keys.
+
+## 2026-10-14 — Claude — Uzbek retrieval bug
+
+Report: asking `food ni ayt unda` about an uploaded Uzbek vocabulary list (`data.txt`, entry "Food (fud) - ovqat") returned "not enough information".
+Root causes: (1) default embedding model `all-MiniLM-L6-v2` is English-only, scores on Uzbek text were ~0.3-0.4 and near random, so the relevance threshold dropped the right chunk;
+(2) the overlap logic started chunks mid-word ("l. Read", "eyin uch marta"); (3) no keyword fallback; (4) Uzbek apostrophe variants (`ʻ ‘ ’`) differ between texts.
+Fixes: hybrid retrieval (Qdrant full-text index + IDF keyword ranking + RRF), word-aligned chunk overlap, apostrophe normalisation, `CHUNKER_VERSION` in the index signature (all 71 docs re-queued),
+optional E5 multilingual provider with query/passage prefixes (`make model`; download over this network was too slow to verify end-to-end, so MiniLM stays the default),
+Uzbek Wikipedia corpus + `owner@uz.test` org in the seed. Also: a failed first chat question no longer leaves an empty "Untitled" conversation (frontend deletes it).
+Tests: backend 93 passed (new: lexical retrieval, mid-word chunking, apostrophes). Real answers verified: "food ni ayt unda" → "Food so'zining ma'nosi: ovqat", "Alisher Navoiy qachon tug'ilgan?" → 1441-yil 9-fevral.
