@@ -173,7 +173,7 @@ RAG_SCORE_THRESHOLD = env.float("RAG_SCORE_THRESHOLD", default=0.30)
 RAG_MAX_CONTEXT_CHARS = env.int("RAG_MAX_CONTEXT_CHARS", default=6000)
 RAG_MAX_QUESTION_CHARS = env.int("RAG_MAX_QUESTION_CHARS", default=2000)
 GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
-GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-3.5-flash")
+GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-3.5-flash-lite")
 GEMINI_FALLBACK_MODEL = env("GEMINI_FALLBACK_MODEL", default="")  # tried once if the primary keeps failing
 GEMINI_TIMEOUT_SECONDS = env.int("GEMINI_TIMEOUT_SECONDS", default=30)
 GEMINI_MAX_ATTEMPTS = env.int("GEMINI_MAX_ATTEMPTS", default=4)
