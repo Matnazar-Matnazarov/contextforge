@@ -1,0 +1,28 @@
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode zstd gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Uploads are capped at the proxy as well as in Django (MAX_UPLOAD_BYTES + multipart overhead).
+	@api path /api/* /django-admin/* /django-static/*
+	handle @api {
+		request_body {
+			max_size 12MB
+		}
+		reverse_proxy api:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
